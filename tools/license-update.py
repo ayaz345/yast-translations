@@ -30,40 +30,50 @@ pots = glob.glob("../po/*/*.pot")
 for pot_file in pots:
   pot = os.path.basename(pot_file)
   wlprj = "yast-" + pot.rsplit(".pot")[0]
-  print(wlprj + ' weblate project')
+  print(f'{wlprj} weblate project')
   prjpots = glob.glob(os.path.expanduser("~/yast-checkout/*/") + pot)
   prjlicenses = []
   for ff in prjpots:
     prjdir = os.path.dirname(ff)
     prj = os.path.basename(prjdir)
-    if os.path.exists(prjdir + "/RPMNAME"):
-      prjpkg = pathlib.Path(prjdir + "/RPMNAME").read_text().strip()
+    if os.path.exists(f"{prjdir}/RPMNAME"):
+      prjpkg = pathlib.Path(f"{prjdir}/RPMNAME").read_text().strip()
     else:
       prjpkg = prj
-    print('      ' + prj + ' repo: ' + prjpkg + ' package')
+    print(f'      {prj} repo: {prjpkg} package')
     try:
-      spec = subprocess.check_output(['osc', 'cat', opensuse_repo, prjpkg, prjpkg + '.spec']).decode('utf-8')
+      spec = subprocess.check_output(
+          ['osc', 'cat', opensuse_repo, prjpkg,
+           f'{prjpkg}.spec']).decode('utf-8')
     except:
 # If you have no access to SLE OBS (IBS), feel free to comment out this line.
       try:
-        spec = subprocess.check_output(['osc', '-A', 'https://api.suse.de/', 'cat', sle_repo, prjpkg, prjpkg + '.spec']).decode('utf-8')
+        spec = subprocess.check_output([
+            'osc',
+            '-A',
+            'https://api.suse.de/',
+            'cat',
+            sle_repo,
+            prjpkg,
+            f'{prjpkg}.spec',
+        ]).decode('utf-8')
       except:
-        print('  FAILURE! Package named ' + prjpkg + ' was not found!')
+        print(f'  FAILURE! Package named {prjpkg} was not found!')
         continue
     spec_license_line = re.findall('^License:.*$', spec, re.MULTILINE)[0]
     spec_license = re.sub('License:', '', spec_license_line).strip()
-    print('        "' + spec_license + '" partial license')
-    if not spec_license in prjlicenses:
+    print(f'        "{spec_license}" partial license')
+    if spec_license not in prjlicenses:
       prjlicenses.append(spec_license)
-  if len(prjlicenses) == 0:
+  if not prjlicenses:
     continue
   if len(prjlicenses) == 1:
     final_license = prjlicenses[0]
   else:
     final_license = '(' + ') AND ('.join(prjlicenses) + ')'
-  print('  "' + final_license + '" final license')
-  weblate_django_shell(
-'''from weblate.trans.models.project import Project
+  print(f'  "{final_license}" final license')
+    weblate_django_shell(
+  '''from weblate.trans.models.project import Project
 from weblate.trans.models.component import Component
 project = Project.objects.get(name="''' + wlprj + '''")
 component = Component.objects.get(project=project, name="master")
